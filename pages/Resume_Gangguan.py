@@ -15,18 +15,27 @@ def fetch_google_sheets():
     return pd.read_excel(sheet_url, sheet_name='ENTRI HAR')
 
 def load_data():
+    # 1. Cek apakah ada file Excel yang baru di-upload di web
     if 'uploaded_excel' in st.session_state:
         excel_data = io.BytesIO(st.session_state['uploaded_excel'])
-        # UBAH JUGA DI SINI
-        df = pd.read_excel(excel_data, sheet_name='ENTRI HAR')
+        df = pd.read_excel(excel_data, sheet_name='ENTRI GANGGUAN')
+    # 2. Jika tidak ada file yang di-upload, tarik otomatis dari Google Sheets
     else:
         df = fetch_google_sheets()
+    
+    # ========================================================
+    # FIX: Bersihkan nama kolom dari spasi tersembunyi (SANGAT PENTING)
+    # ========================================================
+    df.columns = df.columns.str.strip().str.upper()
+    
+    # Proses pembersihan data
+    if 'TANGGAL PADAM' in df.columns and 'PENYULANG' in df.columns:
+        df = df.dropna(subset=['TANGGAL PADAM', 'PENYULANG'])
+        df['TANGGAL PADAM'] = pd.to_datetime(df['TANGGAL PADAM'], errors='coerce').dt.date
         
-    # Pastikan nama kolom di bawah ini sesuai dengan yang ada di sheet ENTRI HAR
-    # Hapus kode pembersihan TEMPORER/PERMANEN karena itu khusus Gangguan
-    if 'KODE PENYULANG' in df.columns:
-        df = df.dropna(subset=['KODE PENYULANG'])
-        
+    if 'TEMPORER' in df.columns: df['TEMPORER'] = df['TEMPORER'].fillna(0)
+    if 'PERMANEN' in df.columns: df['PERMANEN'] = df['PERMANEN'].fillna(0)
+    
     return df
 
 try:

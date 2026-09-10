@@ -17,17 +17,24 @@ def fetch_google_sheets():
     return pd.read_excel(sheet_url, sheet_name='ENTRI GANGGUAN')
 
 def load_data():
-    # 1. Cek apakah admin meng-upload file Excel di menu "Upload Data"
+    # 1. Cek apakah ada file Excel yang baru di-upload di web
     if 'uploaded_excel' in st.session_state:
         excel_data = io.BytesIO(st.session_state['uploaded_excel'])
         df = pd.read_excel(excel_data, sheet_name='ENTRI GANGGUAN')
-    # 2. Jika tidak ada file upload, tarik data otomatis dari internet
+    # 2. Jika tidak ada file yang di-upload, tarik otomatis dari Google Sheets
     else:
         df = fetch_google_sheets()
-        
+    
+    # ========================================================
+    # FIX: Bersihkan nama kolom dari spasi tersembunyi (SANGAT PENTING)
+    # ========================================================
+    df.columns = df.columns.str.strip().str.upper()
+    
     # Proses pembersihan data
-    df = df.dropna(subset=['TANGGAL PADAM', 'PENYULANG'])
-    df['TANGGAL PADAM'] = pd.to_datetime(df['TANGGAL PADAM'], errors='coerce').dt.date
+    if 'TANGGAL PADAM' in df.columns and 'PENYULANG' in df.columns:
+        df = df.dropna(subset=['TANGGAL PADAM', 'PENYULANG'])
+        df['TANGGAL PADAM'] = pd.to_datetime(df['TANGGAL PADAM'], errors='coerce').dt.date
+        
     if 'TEMPORER' in df.columns: df['TEMPORER'] = df['TEMPORER'].fillna(0)
     if 'PERMANEN' in df.columns: df['PERMANEN'] = df['PERMANEN'].fillna(0)
     
