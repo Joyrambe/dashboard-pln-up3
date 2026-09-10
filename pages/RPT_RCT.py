@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import io
 
 st.set_page_config(page_title="RPT & RCT Harian", page_icon="📈", layout="wide")
 
@@ -7,17 +8,23 @@ st.title("📈 RPT DAN RCT HARIAN")
 st.markdown("---")
 
 # =========================================================
-# 1. LOAD DATA GOOGLE SHEETS (REAL-TIME)
+# 1. LOAD DATA (HYBRID: UPLOAD & GOOGLE SHEETS)
 # =========================================================
-# Gunakan ttl=60 (cache akan direfresh otomatis setiap 60 detik)
+# Gunakan ttl=60 (cache direfresh otomatis setiap 60 detik)
 @st.cache_data(ttl=60)
-def load_data():
-    # Link Google Sheets yang sudah diubah belakangnya menjadi export?format=xlsx
+def fetch_google_sheets():
     sheet_url = "https://docs.google.com/spreadsheets/d/1T8WjaUJfeRxCuOJWDWtUtLBxiK7-tyvH/export?format=xlsx"
-    
-    # Membaca data langsung dari internet, persis seperti membaca Excel lokal
-    df = pd.read_excel(sheet_url, sheet_name='ENTRI GANGGUAN')
-    
+    return pd.read_excel(sheet_url, sheet_name='ENTRI GANGGUAN')
+
+def load_data():
+    # 1. Cek apakah admin meng-upload file Excel di menu "Upload Data"
+    if 'uploaded_excel' in st.session_state:
+        excel_data = io.BytesIO(st.session_state['uploaded_excel'])
+        df = pd.read_excel(excel_data, sheet_name='ENTRI GANGGUAN')
+    # 2. Jika tidak ada file upload, tarik data otomatis dari internet
+    else:
+        df = fetch_google_sheets()
+        
     # Proses pembersihan data
     df = df.dropna(subset=['TANGGAL PADAM', 'PENYULANG'])
     df['TANGGAL PADAM'] = pd.to_datetime(df['TANGGAL PADAM'], errors='coerce').dt.date

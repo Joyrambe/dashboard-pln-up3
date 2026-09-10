@@ -1,20 +1,27 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import io # Wajib ditambahkan untuk membaca file dari memori web
 
 st.set_page_config(page_title="Resume Gangguan", page_icon="📊", layout="wide")
 
 # =========================================================
-# 1. LOAD DATA GOOGLE SHEETS (REAL-TIME)
+# 1. LOAD DATA (HYBRID: UPLOAD & GOOGLE SHEETS)
 # =========================================================
-# Gunakan ttl=60 (cache akan direfresh otomatis setiap 60 detik)
+# Fungsi tarik data dari Google Sheets (hanya dieksekusi jika tidak ada file upload)
 @st.cache_data(ttl=60)
-def load_data():
-    # Link Google Sheets yang sudah diubah belakangnya menjadi export?format=xlsx
+def fetch_google_sheets():
     sheet_url = "https://docs.google.com/spreadsheets/d/1T8WjaUJfeRxCuOJWDWtUtLBxiK7-tyvH/export?format=xlsx"
-    
-    # Membaca data langsung dari internet, persis seperti membaca Excel lokal
-    df = pd.read_excel(sheet_url, sheet_name='ENTRI GANGGUAN')
+    return pd.read_excel(sheet_url, sheet_name='ENTRI GANGGUAN')
+
+def load_data():
+    # 1. Cek apakah ada file Excel yang baru di-upload di web
+    if 'uploaded_excel' in st.session_state:
+        excel_data = io.BytesIO(st.session_state['uploaded_excel'])
+        df = pd.read_excel(excel_data, sheet_name='ENTRI GANGGUAN')
+    # 2. Jika tidak ada file yang di-upload, tarik otomatis dari Google Sheets
+    else:
+        df = fetch_google_sheets()
     
     # Proses pembersihan data
     df = df.dropna(subset=['TANGGAL PADAM', 'PENYULANG'])
@@ -27,7 +34,7 @@ def load_data():
 try:
     df = load_data()
 except Exception as e:
-    st.error(f"Gagal menarik data dari server! Pastikan link Google Sheets sudah diset 'Siapa saja yang memiliki link'. Error: {e}")
+    st.error(f"Gagal menarik data! Error: {e}")
     st.stop()
 
 # =========================================================
