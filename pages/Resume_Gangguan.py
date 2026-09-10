@@ -8,27 +8,25 @@ st.set_page_config(page_title="Resume Gangguan", page_icon="📊", layout="wide"
 # =========================================================
 # 1. LOAD DATA (HYBRID: UPLOAD & GOOGLE SHEETS)
 # =========================================================
-# Fungsi tarik data dari Google Sheets (hanya dieksekusi jika tidak ada file upload)
 @st.cache_data(ttl=60)
 def fetch_google_sheets():
     sheet_url = "https://docs.google.com/spreadsheets/d/1T8WjaUJfeRxCuOJWDWtUtLBxiK7-tyvH/export?format=xlsx"
-    return pd.read_excel(sheet_url, sheet_name='ENTRI GANGGUAN')
+    # UBAH NAMA SHEET DI SINI MENJADI SHEET PEMELIHARAAN (misal: 'ENTRI HAR')
+    return pd.read_excel(sheet_url, sheet_name='ENTRI HAR')
 
 def load_data():
-    # 1. Cek apakah ada file Excel yang baru di-upload di web
     if 'uploaded_excel' in st.session_state:
         excel_data = io.BytesIO(st.session_state['uploaded_excel'])
-        df = pd.read_excel(excel_data, sheet_name='ENTRI GANGGUAN')
-    # 2. Jika tidak ada file yang di-upload, tarik otomatis dari Google Sheets
+        # UBAH JUGA DI SINI
+        df = pd.read_excel(excel_data, sheet_name='ENTRI HAR')
     else:
         df = fetch_google_sheets()
-    
-    # Proses pembersihan data
-    df = df.dropna(subset=['TANGGAL PADAM', 'PENYULANG'])
-    df['TANGGAL PADAM'] = pd.to_datetime(df['TANGGAL PADAM'], errors='coerce').dt.date
-    if 'TEMPORER' in df.columns: df['TEMPORER'] = df['TEMPORER'].fillna(0)
-    if 'PERMANEN' in df.columns: df['PERMANEN'] = df['PERMANEN'].fillna(0)
-    
+        
+    # Pastikan nama kolom di bawah ini sesuai dengan yang ada di sheet ENTRI HAR
+    # Hapus kode pembersihan TEMPORER/PERMANEN karena itu khusus Gangguan
+    if 'KODE PENYULANG' in df.columns:
+        df = df.dropna(subset=['KODE PENYULANG'])
+        
     return df
 
 try:
