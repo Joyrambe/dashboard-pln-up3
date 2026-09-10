@@ -5,34 +5,29 @@ import plotly.express as px
 st.set_page_config(page_title="Resume Pemeliharaan", page_icon="🛠️", layout="wide")
 
 # =========================================================
-# 1. FUNGSI LOAD DATA
+# 1. LOAD DATA GOOGLE SHEETS (REAL-TIME)
 # =========================================================
-@st.cache_data
+# Gunakan ttl=60 (cache akan direfresh otomatis setiap 60 detik)
+@st.cache_data(ttl=60)
 def load_data():
-    try:
-        file_path = '../LOGSHEET GANGGUAN 2026.xlsx'
-        df = pd.read_excel(file_path, sheet_name='ENTRY EMERGENCY DAN HAR')
-    except Exception:
-        file_path = 'LOGSHEET GANGGUAN 2026.xlsx'
-        df = pd.read_excel(file_path, sheet_name='ENTRY EMERGENCY DAN HAR')
+    # Link Google Sheets yang sudah diubah belakangnya menjadi export?format=xlsx
+    sheet_url = "https://docs.google.com/spreadsheets/d/1T8WjaUJfeRxCuOJWDWtUtLBxiK7-tyvH/export?format=xlsx"
     
-    df.columns = df.columns.str.strip()
-    df = df.dropna(subset=['TANGGAL PADAM', 'KODE PENYULANG'])
+    # Membaca data langsung dari internet, persis seperti membaca Excel lokal
+    df = pd.read_excel(sheet_url, sheet_name='ENTRI GANGGUAN')
+    
+    # Proses pembersihan data
+    df = df.dropna(subset=['TANGGAL PADAM', 'PENYULANG'])
     df['TANGGAL PADAM'] = pd.to_datetime(df['TANGGAL PADAM'], errors='coerce').dt.date
+    if 'TEMPORER' in df.columns: df['TEMPORER'] = df['TEMPORER'].fillna(0)
+    if 'PERMANEN' in df.columns: df['PERMANEN'] = df['PERMANEN'].fillna(0)
     
-    kategori = ['EMERGENCY', 'HAR', 'DEFISIT', 'TRANSMISI', 'UFR']
-    for kat in kategori:
-        if kat in df.columns:
-            df[kat + '_VAL'] = df[kat].notna().astype(int)
-        else:
-            df[kat + '_VAL'] = 0
-            
     return df
 
 try:
     df = load_data()
 except Exception as e:
-    st.error(f"Gagal membaca data dari sheet 'ENTRY EMERGENCY DAN HAR'. Error: {e}")
+    st.error(f"Gagal menarik data dari server! Pastikan link Google Sheets sudah diset 'Siapa saja yang memiliki link'. Error: {e}")
     st.stop()
 
 # =========================================================

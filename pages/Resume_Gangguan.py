@@ -5,30 +5,29 @@ import plotly.express as px
 st.set_page_config(page_title="Resume Gangguan", page_icon="📊", layout="wide")
 
 # =========================================================
-# 1. LOAD DATA EXCEL (Membaca file dari session_state app.py)
+# 1. LOAD DATA GOOGLE SHEETS (REAL-TIME)
 # =========================================================
-@st.cache_data
+# Gunakan ttl=60 (cache akan direfresh otomatis setiap 60 detik)
+@st.cache_data(ttl=60)
 def load_data():
-    uploaded_file = st.session_state.get('uploaded_excel_file', None)
+    # Link Google Sheets yang sudah diubah belakangnya menjadi export?format=xlsx
+    sheet_url = "https://docs.google.com/spreadsheets/d/1T8WjaUJfeRxCuOJWDWtUtLBxiK7-tyvH/export?format=xlsx"
     
-    if uploaded_file is not None:
-        df = pd.read_excel(uploaded_file, sheet_name='ENTRI GANGGUAN')
-    else:
-        try:
-            df = pd.read_excel('../LOGSHEET GANGGUAN 2026.xlsx', sheet_name='ENTRI GANGGUAN')
-        except Exception:
-            df = pd.read_excel('LOGSHEET GANGGUAN 2026.xlsx', sheet_name='ENTRI GANGGUAN')
+    # Membaca data langsung dari internet, persis seperti membaca Excel lokal
+    df = pd.read_excel(sheet_url, sheet_name='ENTRI GANGGUAN')
     
+    # Proses pembersihan data
     df = df.dropna(subset=['TANGGAL PADAM', 'PENYULANG'])
     df['TANGGAL PADAM'] = pd.to_datetime(df['TANGGAL PADAM'], errors='coerce').dt.date
-    df['TEMPORER'] = df['TEMPORER'].fillna(0)
-    df['PERMANEN'] = df['PERMANEN'].fillna(0)
+    if 'TEMPORER' in df.columns: df['TEMPORER'] = df['TEMPORER'].fillna(0)
+    if 'PERMANEN' in df.columns: df['PERMANEN'] = df['PERMANEN'].fillna(0)
+    
     return df
 
 try:
     df = load_data()
 except Exception as e:
-    st.error(f"Gagal membaca data! Error: {e}")
+    st.error(f"Gagal menarik data dari server! Pastikan link Google Sheets sudah diset 'Siapa saja yang memiliki link'. Error: {e}")
     st.stop()
 
 # =========================================================
