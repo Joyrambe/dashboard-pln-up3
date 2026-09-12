@@ -1,33 +1,48 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import io 
 
 st.set_page_config(page_title="Resume Pemeliharaan", page_icon="🛠️", layout="wide")
 
 # =========================================================
-# 1. LOAD DATA GOOGLE SHEETS (REAL-TIME)
+# 1. LOAD DATA (SUDAH DISESUAIKAN DENGAN EXCEL ASLI)
 # =========================================================
-# Gunakan ttl=60 (cache akan direfresh otomatis setiap 60 detik)
 @st.cache_data(ttl=60)
+def fetch_google_sheets():
+    # TIMPA LINK LAMAMU DENGAN LINK YANG BARU INI:
+    sheet_url = "https://docs.google.com/spreadsheets/d/1OtEMnkxNkh0KfsxhywreqozLGPZmhCt5ynBi-UlzYHM/export?format=xlsx"
+    
+    return pd.read_excel(sheet_url, sheet_name='ENTRY EMERGENCY DAN HAR')
+
 def load_data():
-    # Link Google Sheets yang sudah diubah belakangnya menjadi export?format=xlsx
-    sheet_url = "https://docs.google.com/spreadsheets/d/1T8WjaUJfeRxCuOJWDWtUtLBxiK7-tyvH/export?format=xlsx"
+    if 'uploaded_excel' in st.session_state:
+        excel_data = io.BytesIO(st.session_state['uploaded_excel'])
+        df = pd.read_excel(excel_data, sheet_name='ENTRY EMERGENCY DAN HAR')
+    else:
+        df = fetch_google_sheets()
+        
+    # FIX 1: Bersihkan spasi tersembunyi (Misal: 'BULAN ' otomatis jadi 'BULAN')
+    df.columns = df.columns.str.strip().str.upper()
     
-    # Membaca data langsung dari internet, persis seperti membaca Excel lokal
-    df = pd.read_excel(sheet_url, sheet_name='ENTRI GANGGUAN')
-    
-    # Proses pembersihan data
-    df = df.dropna(subset=['TANGGAL PADAM', 'PENYULANG'])
-    df['TANGGAL PADAM'] = pd.to_datetime(df['TANGGAL PADAM'], errors='coerce').dt.date
-    if 'TEMPORER' in df.columns: df['TEMPORER'] = df['TEMPORER'].fillna(0)
-    if 'PERMANEN' in df.columns: df['PERMANEN'] = df['PERMANEN'].fillna(0)
-    
+    # Proses pembersihan data baris kosong
+    if 'TANGGAL PADAM' in df.columns and 'KODE PENYULANG' in df.columns:
+        df = df.dropna(subset=['TANGGAL PADAM', 'KODE PENYULANG'])
+        df['TANGGAL PADAM'] = pd.to_datetime(df['TANGGAL PADAM'], errors='coerce').dt.date
+        
+    # FIX 2: Menyulap teks "EMERGENCY"/"HAR" di Excel menjadi Angka 1 agar grafik bisa menjumlahkannya
+    kategori_asli = ['EMERGENCY', 'HAR', 'DEFISIT', 'TRANSMISI', 'UFR']
+    for col in kategori_asli:
+        if col in df.columns:
+            # Jika sel ada isinya (tidak kosong), hitung sebagai 1, kalau kosong 0
+            df[col + '_VAL'] = df[col].notna().astype(int)
+            
     return df
 
 try:
     df = load_data()
 except Exception as e:
-    st.error(f"Gagal menarik data dari server! Pastikan link Google Sheets sudah diset 'Siapa saja yang memiliki link'. Error: {e}")
+    st.error(f"Gagal menarik data! Error: {e}")
     st.stop()
 
 # =========================================================
@@ -70,26 +85,28 @@ st.markdown("---")
 # =========================================================
 # 4. LOGIKA TAMPILAN BERDASARKAN MENU
 # =========================================================
-
 if sub_menu == "📊 Utama: Grafik & Logsheet":
     
     st.subheader("Grafik Total Pemeliharaan per Penyulang")
     kategori_val = ['EMERGENCY_VAL', 'HAR_VAL', 'DEFISIT_VAL', 'TRANSMISI_VAL', 'UFR_VAL']
-    bar_data = df_filtered.groupby('KODE PENYULANG')[kategori_val].sum().reset_index()
+    kategori_ada = [k for k in kategori_val if k in df_filtered.columns]
+    
+    if kategori_ada:
+        bar_data = df_filtered.groupby('KODE PENYULANG')[kategori_ada].sum().reset_index()
+        bar_data_melted = bar_data.melt(id_vars='KODE PENYULANG', value_vars=kategori_ada, 
+                                        var_name='JENIS', value_name='JUMLAH')
+        # Hilangkan kata '_VAL' agar nama grafik terlihat rapi
+        bar_data_melted['JENIS'] = bar_data_melted['JENIS'].str.replace('_VAL', '')
 
-    bar_data_melted = bar_data.melt(id_vars='KODE PENYULANG', value_vars=kategori_val, 
-                                    var_name='JENIS', value_name='JUMLAH')
-    bar_data_melted['JENIS'] = bar_data_melted['JENIS'].str.replace('_VAL', '')
+        warna_custom = {
+            'EMERGENCY': '#FF9900', 'HAR': '#2CA02C', 'DEFISIT': '#1F77B4', 
+            'TRANSMISI': '#9467BD', 'UFR': '#17BECF'
+        }
 
-    warna_custom = {
-        'EMERGENCY': '#FF9900', 'HAR': '#2CA02C', 'DEFISIT': '#1F77B4', 
-        'TRANSMISI': '#9467BD', 'UFR': '#17BECF'
-    }
-
-    fig_bar = px.bar(bar_data_melted, x='KODE PENYULANG', y='JUMLAH', color='JENIS',
-                     barmode='stack', text_auto=True, color_discrete_map=warna_custom)
-    fig_bar.update_layout(xaxis_title="PENYULANG", yaxis_title="JUMLAH")
-    st.plotly_chart(fig_bar, use_container_width=True)
+        fig_bar = px.bar(bar_data_melted, x='KODE PENYULANG', y='JUMLAH', color='JENIS',
+                         barmode='stack', text_auto=True, color_discrete_map=warna_custom)
+        fig_bar.update_layout(xaxis_title="PENYULANG", yaxis_title="JUMLAH")
+        st.plotly_chart(fig_bar, use_container_width=True)
 
     st.markdown("---")
     st.subheader("LOGSHEET DATA")
@@ -107,25 +124,27 @@ elif sub_menu == "🥧 Detail: Bulan & ULP":
 
     with col_pie1:
         st.subheader("BERDASARKAN BULAN")
-        bulan_counts = df_filtered['BULAN'].value_counts().reset_index()
-        bulan_counts.columns = ['BULAN', 'JUMLAH']
-        fig_bulan = px.pie(bulan_counts, values='JUMLAH', names='BULAN', hole=0.4,
-                           color_discrete_sequence=px.colors.qualitative.Pastel)
-        
-        event_bulan = st.plotly_chart(fig_bulan, use_container_width=True, on_select="rerun", selection_mode="points", key="pie_bulan")
-        if event_bulan and len(event_bulan.selection.points) > 0:
-            clicked_bulan = event_bulan.selection.points[0].get("label")
+        if 'BULAN' in df_filtered.columns:
+            bulan_counts = df_filtered['BULAN'].value_counts().reset_index()
+            bulan_counts.columns = ['BULAN', 'JUMLAH']
+            fig_bulan = px.pie(bulan_counts, values='JUMLAH', names='BULAN', hole=0.4,
+                               color_discrete_sequence=px.colors.qualitative.Pastel)
+            
+            event_bulan = st.plotly_chart(fig_bulan, use_container_width=True, on_select="rerun", selection_mode="points", key="pie_bulan")
+            if event_bulan and len(event_bulan.selection.points) > 0:
+                clicked_bulan = event_bulan.selection.points[0].get("label")
 
     with col_pie2:
         st.subheader("BERDASARKAN ULP")
-        ulp_counts = df_filtered['ULP'].value_counts().reset_index()
-        ulp_counts.columns = ['ULP', 'JUMLAH']
-        fig_ulp = px.pie(ulp_counts, values='JUMLAH', names='ULP', hole=0.4,
-                         color_discrete_sequence=px.colors.qualitative.Set2)
-        
-        event_ulp = st.plotly_chart(fig_ulp, use_container_width=True, on_select="rerun", selection_mode="points", key="pie_ulp")
-        if event_ulp and len(event_ulp.selection.points) > 0:
-            clicked_ulp = event_ulp.selection.points[0].get("label")
+        if 'ULP' in df_filtered.columns:
+            ulp_counts = df_filtered['ULP'].value_counts().reset_index()
+            ulp_counts.columns = ['ULP', 'JUMLAH']
+            fig_ulp = px.pie(ulp_counts, values='JUMLAH', names='ULP', hole=0.4,
+                             color_discrete_sequence=px.colors.qualitative.Set2)
+            
+            event_ulp = st.plotly_chart(fig_ulp, use_container_width=True, on_select="rerun", selection_mode="points", key="pie_ulp")
+            if event_ulp and len(event_ulp.selection.points) > 0:
+                clicked_ulp = event_ulp.selection.points[0].get("label")
 
     # Proses Filter Otomatis
     df_detail = df_filtered.copy()

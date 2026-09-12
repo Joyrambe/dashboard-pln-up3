@@ -13,7 +13,9 @@ st.markdown("---")
 # Gunakan ttl=60 (cache direfresh otomatis setiap 60 detik)
 @st.cache_data(ttl=60)
 def fetch_google_sheets():
-    sheet_url = "https://docs.google.com/spreadsheets/d/1T8WjaUJfeRxCuOJWDWtUtLBxiK7-tyvH/export?format=xlsx"
+    # TIMPA LINK LAMAMU DENGAN LINK YANG BARU INI:
+    sheet_url = "https://docs.google.com/spreadsheets/d/1OtEMnkxNkh0KfsxhywreqozLGPZmhCt5ynBi-UlzYHM/export?format=xlsx"
+    
     return pd.read_excel(sheet_url, sheet_name='ENTRI GANGGUAN')
 
 def load_data():
