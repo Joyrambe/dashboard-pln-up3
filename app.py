@@ -9,7 +9,7 @@ st.markdown("""
 <style>
     /* Menyembunyikan styling tombol bawaan dan mengubahnya jadi kotak */
     div.stButton > button {
-        height: 180px;
+        height: 120px; /* Ukuran dipendekkan agar pas dengan teks tunggal */
         width: 100%;
         border-radius: 15px;
         border: 1px solid #333;
@@ -20,7 +20,6 @@ st.markdown("""
         flex-direction: column;
         justify-content: center;
         align-items: center;
-        padding: 15px;
     }
     
     /* Efek menyala saat kursor diarahkan ke kotak (Hover) */
@@ -32,13 +31,13 @@ st.markdown("""
         color: #00BFA5;
     }
     
-    /* Mengatur teks agar bisa lebih dari 1 baris dan rapi */
+    /* Mengatur teks judul agar lebih besar dan tebal */
     div.stButton > button p {
-        font-size: 15px;
+        font-size: 18px;
+        font-weight: bold;
         margin: 0;
         white-space: pre-wrap; 
         text-align: center;
-        line-height: 1.5;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -56,15 +55,15 @@ st.markdown("<br><br>", unsafe_allow_html=True)
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    if st.button("📊\nRESUME GANGGUAN\n\nData logsheet, grafik, dan analisis penyebab.", use_container_width=True):
+    if st.button("📊\nRESUME GANGGUAN", use_container_width=True):
         st.switch_page("pages/Resume_Gangguan.py")
 
 with col2:
-    if st.button("🛠️\nRESUME PEMELIHARAAN\n\nRekapitulasi pekerjaan dan evaluasi tindakan.", use_container_width=True):
+    if st.button("🛠️\nRESUME PEMELIHARAAN", use_container_width=True):
         st.switch_page("pages/Resume_Pemeliharaan.py")
 
 with col3:
-    if st.button("📝\nRPT RCT\n\nLaporan harian dan pencatatan operasional rutin.", use_container_width=True):
+    if st.button("📝\nRPT RCT", use_container_width=True):
         st.switch_page("pages/RPT_RCT.py")
 
 st.markdown("<br>", unsafe_allow_html=True)
@@ -75,13 +74,13 @@ st.markdown("<br>", unsafe_allow_html=True)
 col4, col5, col6 = st.columns(3)
 
 with col4:
-    if st.button("🔄\nRESUME RECLOSER\n\nStatus dan riwayat kerja perangkat recloser.", use_container_width=True):
+    if st.button("🔄\nRESUME RECLOSERS", use_container_width=True):
         st.switch_page("pages/Resume_Reclosers.py")
 
 with col5:
-    if st.button("🔍\nINSPEKSI\n\nPengecekan progres hasil inspeksi lapangan.", use_container_width=True):
+    if st.button("🔍\nINSPEKSI", use_container_width=True):
         st.switch_page("pages/Inspeksi.py")
 
 with col6:
-    if st.button("🏆\nTOP 10 PENYULANG KRONIS\n\nInfografis penyulang dengan frekuensi tertinggi.", use_container_width=True):
+    if st.button("🏆\nTOP 10 PENYULANG KRONIS", use_container_width=True):
         st.switch_page("pages/Infografis_Kronis.py")
