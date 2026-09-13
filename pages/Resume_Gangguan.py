@@ -8,11 +8,10 @@ import requests
 st.set_page_config(page_title="Resume Gangguan", page_icon="📊", layout="wide")
 
 # =========================================================
-# 1. LOAD DATA GOOGLE SHEETS (LINK BARU)
+# 1. LOAD DATA GOOGLE SHEETS
 # =========================================================
 @st.cache_data(ttl=60)
 def fetch_google_sheets():
-    # LINK BARU YANG SUDAH DIUBAH FORMAT EXPORT-NYA
     sheet_url = "https://docs.google.com/spreadsheets/d/1OtEMnkxNkh0KfsxhywreqozLGPZmhCt5ynBi-UlzYHM/export?format=xlsx"
     return pd.read_excel(sheet_url, sheet_name='ENTRI GANGGUAN')
 
@@ -114,84 +113,115 @@ elif sub_menu == "🥧 Detail: Relay & Penyebab":
                               color_discrete_sequence=px.colors.qualitative.Set2)
         st.plotly_chart(fig_penyebab, use_container_width=True)
 
-# ---> MENU 3: INPUT DATA BARU <---
+# ---> MENU 3: INPUT DATA BARU (DENGAN SISTEM LOGIN KEAMANAN) <---
 elif sub_menu == "📝 Input Gangguan Baru":
     st.subheader("Form Entri Data Gangguan (Real-time)")
     
-    with st.form("form_entri_gangguan", clear_on_submit=True):
-        st.markdown("##### 📍 Data Lokasi & Jaringan")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            penyulang = st.text_input("Penyulang")
-            nama = st.text_input("Nama")
-            ulp = st.selectbox("ULP", ["PADANGSIDIMPUAN", "SIBUHUAN", "KOTANOPAN", "PANYABUNGAN", "SIPIROK"])
-        with col2:
-            section = st.text_input("Section")
-            nama_section = st.text_input("Nama Section")
-        with col3:
-            titik_koordinat = st.text_input("Titik Koordinat")
-            cuaca = st.text_input("Cuaca")
+    # Inisialisasi Session State untuk Keamanan
+    if "akses_form" not in st.session_state:
+        st.session_state["akses_form"] = False
 
-        st.markdown("##### 🕒 Detail Waktu")
-        col_w1, col_w2, col_w3, col_w4 = st.columns(4)
-        with col_w1:
-            bulan = st.selectbox("Bulan", ["JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI", "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER"])
-            tanggal_padam = st.date_input("Tanggal Padam")
-        with col_w2:
-            jam_padam = st.time_input("Jam Padam")
-            tanggal_nyala = st.date_input("Tanggal Nyala")
-        with col_w3:
-            jam_nyala = st.time_input("Jam Nyala")
-            durasi_jam = st.number_input("Durasi Jam", min_value=0.0, step=0.1)
-        with col_w4:
-            durasi_menit = st.number_input("Durasi Menit", min_value=0)
+    # JIKA BELUM LOGIN
+    if not st.session_state["akses_form"]:
+        st.error("🔒 **AREA TERBATAS**")
+        st.warning("Halaman ini hanya dapat diakses oleh Admin/Petugas berwenang untuk mencegah manipulasi data.")
+        
+        # Form Login Sederhana
+        with st.form("form_login"):
+            pin_input = st.text_input("🔑 Masukkan PIN Akses:", type="password")
+            btn_login = st.form_submit_button("Buka Kunci")
+            
+            if btn_login:
+                # >>> KAU BISA GANTI PIN-NYA DI SINI <<<
+                if pin_input == "PLNUP3": 
+                    st.session_state["akses_form"] = True
+                    st.rerun() # Refresh instan biar formnya langsung muncul
+                else:
+                    st.error("❌ PIN yang Anda masukkan salah!")
 
-        st.markdown("##### ⚙️ Detail Teknis & Gangguan")
-        col_t1, col_t2, col_t3, col_t4 = st.columns(4)
-        with col_t1:
-            penyebab = st.text_input("Penyebab")
-            relay = st.selectbox("Relay Yang Bekerja", ["OCR", "GFR", "OCR & GFR", "TIDAK ADA"])
-        with col_t2:
-            temporer = st.number_input("Temporer (Kali)", min_value=0)
-            permanen = st.number_input("Permanen (Kali)", min_value=0)
-        with col_t3:
-            arus_tertinggi = st.number_input("Arus Tertinggi (A)", min_value=0.0)
-            ens = st.number_input("ENS (kWh)", min_value=0.0)
-        with col_t4:
-            st.markdown("**Arus Fasa (A)**")
-            col_r, col_s = st.columns(2)
-            col_t_fasa, col_n = st.columns(2)
-            with col_r: r = st.number_input("R", min_value=0.0)
-            with col_s: s = st.number_input("S", min_value=0.0)
-            with col_t_fasa: t = st.number_input("T", min_value=0.0)
-            with col_n: n = st.number_input("N", min_value=0.0)
+    # JIKA SUDAH LOGIN (FORM MUNCUL)
+    if st.session_state["akses_form"]:
+        
+        # Tombol Logout untuk mengunci kembali form
+        if st.button("🔒 Tutup Akses (Keluar)"):
+            st.session_state["akses_form"] = False
+            st.rerun()
+            
+        st.success("✅ **Akses Diberikan.** Silakan masukkan data gangguan terbaru.")
+        
+        with st.form("form_entri_gangguan", clear_on_submit=True):
+            st.markdown("##### 📍 Data Lokasi & Jaringan")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                penyulang = st.text_input("Penyulang")
+                nama = st.text_input("Nama")
+                ulp = st.selectbox("ULP", ["PADANGSIDIMPUAN", "SIBUHUAN", "KOTANOPAN", "PANYABUNGAN", "SIPIROK", "GUNUNG TUA", "NATAL"])
+            with col2:
+                section = st.text_input("Section")
+                nama_section = st.text_input("Nama Section")
+            with col3:
+                titik_koordinat = st.text_input("Titik Koordinat")
+                cuaca = st.text_input("Cuaca")
 
-        st.markdown("---")
-        submit_button = st.form_submit_button("💾 Simpan Data Baru", use_container_width=True)
+            st.markdown("##### 🕒 Detail Waktu")
+            col_w1, col_w2, col_w3, col_w4 = st.columns(4)
+            with col_w1:
+                bulan = st.selectbox("Bulan", ["JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI", "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER"])
+                tanggal_padam = st.date_input("Tanggal Padam")
+            with col_w2:
+                jam_padam = st.time_input("Jam Padam")
+                tanggal_nyala = st.date_input("Tanggal Nyala")
+            with col_w3:
+                jam_nyala = st.time_input("Jam Nyala")
+                durasi_jam = st.number_input("Durasi Jam", min_value=0.0, step=0.1)
+            with col_w4:
+                durasi_menit = st.number_input("Durasi Menit", min_value=0)
 
-        if submit_button:
-            if penyulang == "":
-                st.error("⚠️ Penyulang wajib diisi!")
-            else:
-                with st.spinner("Memproses data ke Google Sheets..."):
-                    # >>> WEBHOOK URL MILIKMU SUDAH AKTIF DI SINI <<<
-                    webhook_url = "https://script.google.com/macros/s/AKfycbxvbw68N92VTdSZP4xUT6HnWNvcvYdrYR4vNhUSndaGwyDk-VbVRQSFp0-6bajsWst3/exec" 
-                    
-                    payload = {
-                        "penyulang": penyulang, "nama": nama, "section": section, "nama_section": nama_section,
-                        "ulp": ulp, "penyebab": penyebab, "relay": relay, "bulan": bulan,
-                        "tanggal_padam": str(tanggal_padam), "jam_padam": str(jam_padam),
-                        "tanggal_nyala": str(tanggal_nyala), "jam_nyala": str(jam_nyala),
-                        "durasi_jam": durasi_jam, "durasi_menit": durasi_menit,
-                        "temporer": temporer, "permanen": permanen, "cuaca": cuaca,
-                        "arus_tertinggi": arus_tertinggi, "ens": ens,
-                        "r": r, "s": s, "t": t, "n": n, "titik_koordinat": titik_koordinat
-                    }
-                    try:
-                        response = requests.post(webhook_url, json=payload)
-                        if response.status_code == 200:
-                            st.success(f"✅ Hore! Data {penyulang} sukses masuk ke Google Sheets! Refresh web untuk melihat hasilnya.")
-                        else:
-                            st.error(f"❌ Gagal mengirim data: {response.text}")
-                    except Exception as e:
-                        st.error(f"❌ Terjadi kesalahan jaringan: {e}")
+            st.markdown("##### ⚙️ Detail Teknis & Gangguan")
+            col_t1, col_t2, col_t3, col_t4 = st.columns(4)
+            with col_t1:
+                penyebab = st.text_input("Penyebab")
+                relay = st.selectbox("Relay Yang Bekerja", ["OCR", "GFR", "OCR & GFR", "TIDAK ADA"])
+            with col_t2:
+                temporer = st.number_input("Temporer (Kali)", min_value=0)
+                permanen = st.number_input("Permanen (Kali)", min_value=0)
+            with col_t3:
+                arus_tertinggi = st.number_input("Arus Tertinggi (A)", min_value=0.0)
+                ens = st.number_input("ENS (kWh)", min_value=0.0)
+            with col_t4:
+                st.markdown("**Arus Fasa (A)**")
+                col_r, col_s = st.columns(2)
+                col_t_fasa, col_n = st.columns(2)
+                with col_r: r = st.number_input("R", min_value=0.0)
+                with col_s: s = st.number_input("S", min_value=0.0)
+                with col_t_fasa: t = st.number_input("T", min_value=0.0)
+                with col_n: n = st.number_input("N", min_value=0.0)
+
+            st.markdown("---")
+            submit_button = st.form_submit_button("💾 Simpan Data Baru", use_container_width=True)
+
+            if submit_button:
+                if penyulang == "":
+                    st.error("⚠️ Penyulang wajib diisi!")
+                else:
+                    with st.spinner("Memproses data ke Google Sheets..."):
+                        webhook_url = "https://script.google.com/macros/s/AKfycbxvbw68N92VTdSZP4xUT6HnWNvcvYdrYR4vNhUSndaGwyDk-VbVRQSFp0-6bajsWst3/exec" 
+                        
+                        payload = {
+                            "penyulang": penyulang, "nama": nama, "section": section, "nama_section": nama_section,
+                            "ulp": ulp, "penyebab": penyebab, "relay": relay, "bulan": bulan,
+                            "tanggal_padam": str(tanggal_padam), "jam_padam": str(jam_padam),
+                            "tanggal_nyala": str(tanggal_nyala), "jam_nyala": str(jam_nyala),
+                            "durasi_jam": durasi_jam, "durasi_menit": durasi_menit,
+                            "temporer": temporer, "permanen": permanen, "cuaca": cuaca,
+                            "arus_tertinggi": arus_tertinggi, "ens": ens,
+                            "r": r, "s": s, "t": t, "n": n, "titik_koordinat": titik_koordinat
+                        }
+                        try:
+                            response = requests.post(webhook_url, json=payload)
+                            if response.status_code == 200:
+                                st.success(f"✅ Hore! Data {penyulang} sukses masuk ke Google Sheets! Refresh web untuk melihat hasilnya.")
+                            else:
+                                st.error(f"❌ Gagal mengirim data: {response.text}")
+                        except Exception as e:
+                            st.error(f"❌ Terjadi kesalahan jaringan: {e}")
