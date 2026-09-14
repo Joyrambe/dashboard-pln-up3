@@ -1,126 +1,102 @@
 import streamlit as st
 import pandas as pd
-import io
+import requests
 
-st.set_page_config(page_title="RPT & RCT Harian", page_icon="📈", layout="wide")
-
-st.title("📈 RPT DAN RCT HARIAN")
-st.markdown("---")
+st.set_page_config(page_title="RPT RCT", page_icon="📝", layout="wide")
 
 # =========================================================
-# 1. LOAD DATA (HYBRID: UPLOAD & GOOGLE SHEETS)
+# URL WEBHOOK SUDAH DIPASANG SESUAI PERMINTAANMU LEKK!
+WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbyQAbjD571sZCv7vr4YGaQsmGyhFnN2HeRNq9he4byJP8sKQwjhImrr3tElIbgs56_5/exec"
 # =========================================================
-# Gunakan ttl=60 (cache direfresh otomatis setiap 60 detik)
+
 @st.cache_data(ttl=60)
-def fetch_google_sheets():
-    # TIMPA LINK LAMAMU DENGAN LINK YANG BARU INI:
-    sheet_url = "https://docs.google.com/spreadsheets/d/1OtEMnkxNkh0KfsxhywreqozLGPZmhCt5ynBi-UlzYHM/export?format=xlsx"
-    
-    return pd.read_excel(sheet_url, sheet_name='ENTRI GANGGUAN')
-
-def load_data():
-    # 1. Cek apakah ada file Excel yang baru di-upload di web
-    if 'uploaded_excel' in st.session_state:
-        excel_data = io.BytesIO(st.session_state['uploaded_excel'])
-        df = pd.read_excel(excel_data, sheet_name='ENTRI GANGGUAN')
-    # 2. Jika tidak ada file yang di-upload, tarik otomatis dari Google Sheets
-    else:
-        df = fetch_google_sheets()
-    
-    # ========================================================
-    # FIX: Bersihkan nama kolom dari spasi tersembunyi (SANGAT PENTING)
-    # ========================================================
-    df.columns = df.columns.str.strip().str.upper()
-    
-    # Proses pembersihan data
-    if 'TANGGAL PADAM' in df.columns and 'PENYULANG' in df.columns:
-        df = df.dropna(subset=['TANGGAL PADAM', 'PENYULANG'])
-        df['TANGGAL PADAM'] = pd.to_datetime(df['TANGGAL PADAM'], errors='coerce').dt.date
-        
-    if 'TEMPORER' in df.columns: df['TEMPORER'] = df['TEMPORER'].fillna(0)
-    if 'PERMANEN' in df.columns: df['PERMANEN'] = df['PERMANEN'].fillna(0)
-    
-    return df
+def fetch_data_rpt():
+    sheet_url = "https://docs.google.com/spreadsheets/d/1SC5zEQdb59cjyaBvFNWG5USjP6rVsg4tHNb6iSd669U/export?format=xlsx"
+    return pd.read_excel(sheet_url, sheet_name=0)
 
 try:
-    df = load_data()
+    df_rpt = fetch_data_rpt()
+    df_rpt.columns = df_rpt.columns.astype(str).str.strip().str.upper()
 except Exception as e:
-    st.error(f"Gagal menarik data dari server! Pastikan link Google Sheets sudah diset 'Siapa saja yang memiliki link'. Error: {e}")
+    st.error(f"❌ Gagal menarik data! Pastikan akses link Google Sheets sudah 'Siapa saja yang memiliki link'. Error: {e}")
     st.stop()
 
-# =========================================================
-# 2. TABEL 1: RPT DAN RCT HARIAN
-# =========================================================
-st.subheader("📋 RPT DAN RCT HARIAN")
+# Hanya ada 2 pilihan (Tanpa Input Baru)
+sub_menu = st.radio("Pilih Tampilan:", ["📊 Tampilan Data RPT RCT", "✏️ Edit / Hapus Data"], horizontal=True, label_visibility="collapsed")
 
-if 'ULP' in df.columns:
-    # Mengelompokkan berdasarkan ULP untuk menghitung metrik rekapitulasi
-    summary_df = df.groupby('ULP').agg(
-        TOTAL=('PENYULANG', 'count'),
-        RATA_RESPON=('DURASI MENIT', 'mean'),
-        MAX_RESPON=('DURASI MENIT', 'max'),
-        MIN_RESPON=('DURASI MENIT', 'min'),
-        RATA_RECOVERY=('DURASI MENIT', lambda x: x.mean() * 1.5), # Estimasi proporsional
-        MAX_RECOVERY=('DURASI MENIT', lambda x: x.max() * 1.5),
-        MIN_RECOVERY=('DURASI MENIT', lambda x: x.min() * 0.5)
-    ).reset_index()
-    
-    # Format penamaan kolom agar menyerupai Looker Studio
-    summary_df['NAMA UNIT'] = "POSKO " + summary_df['ULP'].astype(str)
-    
-    # Penataan ulang kolom tabel
-    tabel_1_final = pd.DataFrame({
-        'NAMA UNIT': summary_df['NAMA UNIT'],
-        'Total': summary_df['TOTAL'],
-        'Rata-Rata Response Time': summary_df['RATA_RESPON'].round(2),
-        'Max Response Time': summary_df['MAX_RESPON'].round(2),
-        'Min Response Time': summary_df['MIN_RESPON'].round(2),
-        'Rata-Rata Recovery Time': summary_df['RATA_RECOVERY'].round(2),
-        'Max Recovery Time': summary_df['MAX_RECOVERY'].round(2),
-        'Min Recovery Time': summary_df['MIN_RECOVERY'].round(2),
-    })
-    
-    st.dataframe(tabel_1_final, use_container_width=True)
-else:
-    st.warning("Kolom ULP tidak ditemukan pada file Excel.")
-
+st.title("📝 LAPORAN RPT RCT")
 st.markdown("---")
 
-# =========================================================
-# 3. TABEL 2: REALISASI RESPONSE TIME (BULANAN)
-# =========================================================
-st.subheader("⏱️ REALISASI RESPONSE TIME")
+if sub_menu == "📊 Tampilan Data RPT RCT":
+    st.info(f"📊 **Total Laporan:** {len(df_rpt)} baris data.")
+    st.dataframe(df_rpt, use_container_width=True, hide_index=True)
 
-if 'ULP' in df.columns and 'BULAN' in df.columns:
-    df['NAMA UNIT'] = "POSKO " + df['ULP'].astype(str)
-    pivot_response = df.pivot_table(
-        index='NAMA UNIT', 
-        columns='BULAN', 
-        values='DURASI MENIT', 
-        aggfunc='mean', 
-        fill_value=0
-    ).round(2)
-    
-    st.dataframe(pivot_response, use_container_width=True)
-else:
-    st.info("Data bulan atau ULP belum lengkap untuk menampilkan tabel response time.")
+elif sub_menu == "✏️ Edit / Hapus Data":
+    if "akses_rpt" not in st.session_state: st.session_state["akses_rpt"] = False
 
-st.markdown("---")
+    if not st.session_state["akses_rpt"]:
+        st.error("🔒 **AREA TERBATAS ADMIN**")
+        with st.form("form_login_rpt"):
+            pin_input = st.text_input("🔑 Masukkan PIN Akses:", type="password")
+            if st.form_submit_button("Buka Kunci"):
+                if pin_input == "PLNUP3": 
+                    st.session_state["akses_rpt"] = True
+                    st.rerun()
+                else: st.error("❌ PIN salah!")
 
-# =========================================================
-# 4. TABEL 3: REALISASI RECOVERY TIME (BULANAN)
-# =========================================================
-st.subheader("🔄 REALISASI RECOVERY TIME")
+    if st.session_state["akses_rpt"]:
+        if st.button("🔒 Tutup Akses (Logout)"):
+            st.session_state["akses_rpt"] = False
+            st.rerun()
 
-if 'ULP' in df.columns and 'BULAN' in df.columns:
-    pivot_recovery = df.pivot_table(
-        index='NAMA UNIT', 
-        columns='BULAN', 
-        values='DURASI MENIT', 
-        aggfunc='max', 
-        fill_value=0
-    ).round(2)
-    
-    st.dataframe(pivot_recovery, use_container_width=True)
-else:
-    st.info("Data bulan atau ULP belum lengkap untuk menampilkan tabel recovery time.")
+        st.warning("⚠️ **Mode Edit/Hapus Aktif.** Perubahan langsung memengaruhi Google Sheets RPT RCT!")
+        
+        # Menggunakan 2 Kolom Pertama di Excel-mu sebagai Kunci Pencarian Data
+        kolom_1 = df_rpt.columns[0] if len(df_rpt.columns) > 0 else "KOLOM_1"
+        kolom_2 = df_rpt.columns[1] if len(df_rpt.columns) > 1 else "KOLOM_2"
+        
+        st.markdown("### 🔍 1. Cari Data")
+        pilih_k1 = st.selectbox(f"1. Pilih {kolom_1}", df_rpt[kolom_1].dropna().unique())
+        df_filter_1 = df_rpt[df_rpt[kolom_1] == pilih_k1]
+        pilih_k2 = st.selectbox(f"2. Pilih {kolom_2}", df_filter_1[kolom_2].astype(str).unique())
+        df_target = df_filter_1[df_filter_1[kolom_2].astype(str) == pilih_k2]
+
+        if not df_target.empty:
+            data_asli = df_target.iloc[0]
+            st.markdown("---")
+            st.markdown("### 🛠️ 2. Edit Data")
+            
+            with st.form("form_edit_hapus_rpt"):
+                # FITUR CANGGIH: Membuat Form Input Otomatis sebanyak Kolom yang ada di Excel
+                edit_values = {}
+                cols = st.columns(3)
+                for i, col_name in enumerate(df_rpt.columns):
+                    with cols[i % 3]:
+                        val = data_asli.get(col_name, '')
+                        val = "" if pd.isna(val) else str(val)
+                        edit_values[col_name] = st.text_input(col_name, value=val)
+                
+                st.markdown("---")
+                col_btn1, col_btn2 = st.columns(2)
+                with col_btn1:
+                    if st.form_submit_button("🔄 Update Perubahan", use_container_width=True):
+                        with st.spinner("Memperbarui data..."):
+                            payload_update = {
+                                "action": "update", "kunci_pencarian_1": str(pilih_k1), "kunci_pencarian_2": str(pilih_k2), "data_baru": edit_values
+                            }
+                            try:
+                                req = requests.post(WEBHOOK_URL, json=payload_update)
+                                if "Success" in req.text: st.success("✅ Berhasil di-update!")
+                                else: st.error(req.text)
+                            except Exception as e: st.error(e)
+                with col_btn2:
+                    if st.form_submit_button("❌ Hapus Permanen", use_container_width=True):
+                        with st.spinner("Menghapus data..."):
+                            payload_delete = {
+                                "action": "delete", "kunci_pencarian_1": str(pilih_k1), "kunci_pencarian_2": str(pilih_k2)
+                            }
+                            try:
+                                req = requests.post(WEBHOOK_URL, json=payload_delete)
+                                if "Success" in req.text: st.success("🗑️ Berhasil dihapus!")
+                                else: st.error(req.text)
+                            except Exception as e: st.error(e)
