@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 import datetime
 import requests
-import streamlit.components.v1 as components  # TAMBAHAN UNTUK PETA PINTAR
+import streamlit.components.v1 as components
 
 st.set_page_config(page_title="Resume Gangguan", page_icon="📊", layout="wide")
 
@@ -71,76 +71,82 @@ if sub_menu in ["📊 Utama: Grafik & Logsheet", "🥧 Detail: Relay & Penyebab"
         fig_bar = px.bar(bar_data_melted, x='PENYULANG', y='JUMLAH', color='JENIS', barmode='group', text_auto=True, color_discrete_map={'TEMPORER': '#2ca02c', 'PERMANEN': '#1f77b4'})
         st.plotly_chart(fig_bar, use_container_width=True)
         
+        # =========================================================
+        # TABEL INTERAKTIF (KLIK BARIS UNTUK BUKA PETA)
+        # =========================================================
         st.subheader("LOGSHEET DATA")
-        kolom_tabel = ['TANGGAL PADAM', 'PENYULANG', 'NAMA SECTION', 'ULP', 'PENYEBAB', 'RELAY YANG BEKERJA', 'R', 'S', 'T', 'N', 'TITIK KOORDINAT']
-        kolom_tersedia = [k for k in kolom_tabel if k in df_filtered.columns]
-        st.dataframe(df_filtered[kolom_tersedia], use_container_width=True)
-
-        # =========================================================
-        # FITUR SUPER: PETA PINTAR DENGAN FOTO POP-UP
-        # =========================================================
-        st.markdown("---")
-        st.markdown("### 📍 Lacak Peta & Bukti Foto (Pop-up)")
-        st.info("Pilih data gangguan di bawah ini. Arahkan kursor (hover) atau klik icon merah di peta untuk memunculkan foto lokasi secara ajaib!")
+        st.info("💡 **TIPS INTERAKTIF:** Klik pada bagian **Titik Koordinat** (atau di baris mana saja) pada tabel di bawah ini untuk langsung memunculkan Peta Lokasi dan Foto Gangguan!")
         
-        if not df_filtered.empty:
-            df_filtered['LABEL_CARI'] = df_filtered['PENYULANG'] + " | " + df_filtered['TANGGAL PADAM'].astype(str) + " (" + df_filtered.get('PENYEBAB', 'N/A').astype(str) + ")"
-            pilihan = st.selectbox("Pilih Gangguan:", df_filtered['LABEL_CARI'].tolist())
+        kolom_tabel = ['TANGGAL PADAM', 'PENYULANG', 'NAMA SECTION', 'ULP', 'PENYEBAB', 'RELAY YANG BEKERJA', 'R', 'S', 'T', 'N', 'TITIK KOORDINAT', 'FOTO']
+        kolom_tersedia = [k for k in kolom_tabel if k in df_filtered.columns]
+        
+        # Menyulap tabel menjadi tombol sakti!
+        tabel_event = st.dataframe(
+            df_filtered[kolom_tersedia], 
+            use_container_width=True,
+            on_select="rerun", # Perintah sakti untuk menangkap klik
+            selection_mode="single-row"
+        )
+
+        # Jika ada baris yang diklik, langsung munculkan Peta!
+        if len(tabel_event.selection.rows) > 0:
+            st.markdown("---")
             
-            if pilihan:
-                row = df_filtered[df_filtered['LABEL_CARI'] == pilihan].iloc[0]
-                tikor = str(row.get('TITIK KOORDINAT', ''))
-                foto = str(row.get('FOTO', ''))
-                
-                if pd.notna(tikor) and "," in tikor:
-                    try:
-                        lat, lon = map(float, tikor.split(','))
-                        # Menentukan foto: Jika petugas melampirkan link, pakai foto asli. Jika tidak, beri stempel PLN
-                        img_src = foto if pd.notna(foto) and foto.startswith("http") else "https://cdn-icons-png.flaticon.com/512/833/833281.png"
+            # Mengambil data dari baris yang diklik
+            selected_index = tabel_event.selection.rows[0]
+            row = df_filtered.iloc[selected_index]
+            
+            penyulang_info = str(row.get('PENYULANG', ''))
+            tikor = str(row.get('TITIK KOORDINAT', ''))
+            foto = str(row.get('FOTO', ''))
+            
+            st.markdown(f"### 📍 Peta & Bukti Foto: {penyulang_info}")
+            
+            if pd.notna(tikor) and "," in tikor:
+                try:
+                    lat, lon = map(float, tikor.split(','))
+                    img_src = foto if pd.notna(foto) and foto.startswith("http") else "https://cdn-icons-png.flaticon.com/512/833/833281.png"
+                    
+                    map_html = f"""
+                    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+                    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+                    <div id="map" style="height: 450px; width: 100%; border-radius: 15px; border: 2px solid #00BFA5;"></div>
+                    <script>
+                        var map = L.map('map').setView([{lat}, {lon}], 16);
+                        L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
+                            attribution: '© PLN UP3'
+                        }}).addTo(map);
                         
-                        # Kode injeksi HTML untuk Leaflet.js
-                        map_html = f"""
-                        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-                        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-                        <div id="map" style="height: 450px; width: 100%; border-radius: 15px; border: 2px solid #00BFA5;"></div>
-                        <script>
-                            var map = L.map('map').setView([{lat}, {lon}], 16);
-                            L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
-                                attribution: '© PLN UP3'
-                            }}).addTo(map);
-                            
-                            var customIcon = L.icon({{
-                                iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png',
-                                iconSize: [45, 45],
-                                iconAnchor: [22, 45],
-                                popupAnchor: [0, -45]
-                            }});
-                            
-                            var marker = L.marker([{lat}, {lon}], {{icon: customIcon}}).addTo(map);
-                            
-                            // Desain Kotak Pop-Up
-                            var popupContent = `
-                                <div style="text-align:center; font-family:Arial, sans-serif; min-width: 200px;">
-                                    <h4 style="margin: 0 0 10px 0; color:#004D40;">📸 BUKTI GANGGUAN</h4>
-                                    <img src="{img_src}" style="width:100%; max-height:220px; object-fit:cover; border-radius:8px; border:1px solid #ccc; margin-bottom:10px;">
-                                    <br>
-                                    <a href="{img_src}" target="_blank" style="background-color:#00BFA5; color:white; padding:5px 15px; text-decoration:none; border-radius:5px; font-weight:bold; font-size:12px;">🔍 Buka Ukuran Penuh</a>
-                                </div>
-                            `;
-                            
-                            marker.bindPopup(popupContent).openPopup(); // Otomatis terbuka saat peta diload
-                            
-                            // Rahasia Hover: Buka pop-up saat kursor menyentuh marker
-                            marker.on('mouseover', function (e) {{
-                                this.openPopup();
-                            }});
-                        </script>
-                        """
-                        components.html(map_html, height=470)
-                    except Exception as e:
-                        st.warning(f"Format koordinat bermasalah: {e}. Pastikan formatnya: Lat, Long (Contoh: 1.452, 99.123)")
-                else:
-                    st.warning("Titik koordinat belum diisi untuk data ini.")
+                        var customIcon = L.icon({{
+                            iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png',
+                            iconSize: [45, 45],
+                            iconAnchor: [22, 45],
+                            popupAnchor: [0, -45]
+                        }});
+                        
+                        var marker = L.marker([{lat}, {lon}], {{icon: customIcon}}).addTo(map);
+                        
+                        var popupContent = `
+                            <div style="text-align:center; font-family:Arial, sans-serif; min-width: 200px;">
+                                <h4 style="margin: 0 0 10px 0; color:#004D40;">📸 BUKTI GANGGUAN</h4>
+                                <img src="{img_src}" style="width:100%; max-height:220px; object-fit:cover; border-radius:8px; border:1px solid #ccc; margin-bottom:10px;">
+                                <br>
+                                <a href="{img_src}" target="_blank" style="background-color:#00BFA5; color:white; padding:5px 15px; text-decoration:none; border-radius:5px; font-weight:bold; font-size:12px;">🔍 Buka Ukuran Penuh</a>
+                            </div>
+                        `;
+                        
+                        marker.bindPopup(popupContent).openPopup();
+                        
+                        marker.on('mouseover', function (e) {{
+                            this.openPopup();
+                        }});
+                    </script>
+                    """
+                    components.html(map_html, height=470)
+                except Exception as e:
+                    st.warning(f"Format koordinat bermasalah: {e}. Pastikan formatnya: Lat, Long (Contoh: 1.452, 99.123)")
+            else:
+                st.warning("Titik koordinat belum diisi untuk data yang Anda pilih.")
                         
     else:
         col_pie1, col_pie2 = st.columns(2)
@@ -152,7 +158,7 @@ if sub_menu in ["📊 Utama: Grafik & Logsheet", "🥧 Detail: Relay & Penyebab"
             st.plotly_chart(fig_penyebab, use_container_width=True)
 
 # =========================================================
-# KONTEN 3 & 4 (LOGIN ADMIN & FORM) - Tetap persis seperti sebelumnya
+# KONTEN 3 & 4 (LOGIN ADMIN & FORM) 
 # =========================================================
 elif sub_menu in ["📝 Input Baru", "✏️ Edit / Hapus Data"]:
     if "akses_form" not in st.session_state: st.session_state["akses_form"] = False
