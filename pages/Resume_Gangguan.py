@@ -3,9 +3,13 @@ import pandas as pd
 import plotly.express as px
 import datetime
 import requests
+import base64
 import streamlit.components.v1 as components
 
 st.set_page_config(page_title="Resume Gangguan", page_icon="📊", layout="wide")
+
+# Kunci API ImgBB untuk Upload Otomatis dari Web
+IMGBB_API_KEY = "dbe6ae26ce8303a1fdc3b826d3ce0d7c"
 
 # =========================================================
 # 1. LOAD DATA GOOGLE SHEETS
@@ -140,7 +144,7 @@ if sub_menu in ["📊 Utama: Grafik & Logsheet", "🥧 Detail: Relay & Penyebab"
                     """
                     components.html(map_html, height=470)
                 except Exception as e:
-                    st.warning(f"Format koordinat bermasalah: {e}. Pastikan formatnya: Lat, Long (Contoh: 1.452, 99.123)")
+                    st.warning(f"Format koordinat bermasalah: {e}. Pastikan formatnya: Lat, Long")
             else:
                 st.warning("Titik koordinat belum diisi untuk data yang Anda pilih.")
                         
@@ -206,7 +210,7 @@ elif sub_menu in ["📝 Input Baru", "✏️ Edit / Hapus Data"]:
                 st.markdown("##### ⚙️ Detail Teknis & Bukti Lapangan")
                 col_t1, col_t2 = st.columns(2)
                 with col_t1:
-                    penyebab = text_input = st.text_input("Penyebab")
+                    penyebab = st.text_input("Penyebab")
                     relay = st.selectbox("Relay Yang Bekerja", ["OCR", "GFR", "OCR & GFR", "TIDAK ADA"])
                     arus_tertinggi = st.number_input("Arus Tertinggi (A)", min_value=0.0)
                     ens = st.number_input("ENS (kWh)", min_value=0.0)
@@ -214,7 +218,8 @@ elif sub_menu in ["📝 Input Baru", "✏️ Edit / Hapus Data"]:
                     temporer = st.number_input("Temporer (Kali)", min_value=0)
                     permanen = st.number_input("Permanen (Kali)", min_value=0)
                     titik_koordinat = st.text_input("Titik Koordinat (Contoh: 1.432, 99.231)")
-                    foto_input = st.text_input("Link Foto Gangguan (Google Drive/Lainnya)")
+                    # ⚠️ INI BAGIAN AJAIBNYA! Minta petugas unggah langsung fotonya!
+                    file_foto = st.file_uploader("📸 Upload Bukti Foto (JPG/PNG)", type=['jpg', 'jpeg', 'png'])
 
                 st.markdown("**Arus Fasa (A)**")
                 col_r, col_s, col_t_fasa, col_n = st.columns(4)
@@ -224,11 +229,28 @@ elif sub_menu in ["📝 Input Baru", "✏️ Edit / Hapus Data"]:
                 with col_n: n = st.number_input("N", min_value=0.0)
 
                 st.markdown("---")
-                if st.form_submit_button("💾 Simpan Data Baru", use_container_width=True):
+                if st.form_submit_button("💾 Simpan Data Baru & Upload Foto", use_container_width=True):
                     if penyulang == "":
                         st.error("⚠️ Penyulang wajib diisi!")
                     else:
-                        with st.spinner("Memproses data ke Google Sheets..."):
+                        foto_url = ""
+                        # Proses ajaib mengunggah foto secara rahasia ke ImgBB
+                        if file_foto is not None:
+                            with st.spinner("Mengunggah foto ke server Cloud..."):
+                                try:
+                                    img_base64 = base64.b64encode(file_foto.read())
+                                    res = requests.post(
+                                        "https://api.imgbb.com/1/upload", 
+                                        data={"key": IMGBB_API_KEY, "image": img_base64}
+                                    )
+                                    if res.status_code == 200:
+                                        foto_url = res.json()["data"]["url"]
+                                    else:
+                                        st.warning("⚠️ Gagal upload foto, menyimpan data tanpa foto.")
+                                except Exception as e:
+                                    st.error(f"Error upload foto: {e}")
+
+                        with st.spinner("Mengirim data ke Google Sheets..."):
                             payload = {
                                 "action": "insert",
                                 "penyulang": penyulang, "nama": nama, "section": section, "nama_section": nama_section,
@@ -238,7 +260,7 @@ elif sub_menu in ["📝 Input Baru", "✏️ Edit / Hapus Data"]:
                                 "durasi_jam": durasi_jam, "durasi_menit": durasi_menit,
                                 "temporer": temporer, "permanen": permanen, "cuaca": cuaca,
                                 "arus_tertinggi": arus_tertinggi, "ens": ens,
-                                "r": r, "s": s, "t": t, "n": n, "titik_koordinat": titik_koordinat, "foto": foto_input
+                                "r": r, "s": s, "t": t, "n": n, "titik_koordinat": titik_koordinat, "foto": foto_url
                             }
                             try:
                                 req = requests.post(WEBHOOK_URL, json=payload)
@@ -266,7 +288,7 @@ elif sub_menu in ["📝 Input Baru", "✏️ Edit / Hapus Data"]:
                         edit_tgl_padam = st.text_input("Tanggal Padam (YYYY-MM-DD)", value=str(data_asli.get('TANGGAL PADAM', '')))
                         edit_relay = st.text_input("Relay Yang Bekerja", value=str(data_asli.get('RELAY YANG BEKERJA', '')))
                         edit_durasi = st.number_input("Durasi Jam", value=float(data_asli.get('DURASI JAM', 0.0) if pd.notna(data_asli.get('DURASI JAM')) else 0.0))
-                        edit_foto = st.text_input("Link Foto", value=str(data_asli.get('LINK FOTO', '')))
+                        edit_foto = st.text_input("Link Foto Saat Ini (Kosongkan bila ingin dihapus)", value=str(data_asli.get('LINK FOTO', '')))
                     
                     st.markdown("---")
                     col_btn1, col_btn2 = st.columns(2)
