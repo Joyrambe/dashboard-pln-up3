@@ -77,28 +77,24 @@ if sub_menu in ["📊 Utama: Grafik & Logsheet", "🥧 Detail: Relay & Penyebab"
         st.subheader("LOGSHEET DATA")
         st.info("💡 **TIPS INTERAKTIF:** Klik pada bagian **Titik Koordinat** (atau di baris mana saja) pada tabel di bawah ini untuk langsung memunculkan Peta Lokasi dan Foto Gangguan!")
         
-        kolom_tabel = ['TANGGAL PADAM', 'PENYULANG', 'NAMA SECTION', 'ULP', 'PENYEBAB', 'RELAY YANG BEKERJA', 'R', 'S', 'T', 'N', 'TITIK KOORDINAT', 'FOTO']
+        kolom_tabel = ['TANGGAL PADAM', 'PENYULANG', 'NAMA SECTION', 'ULP', 'PENYEBAB', 'RELAY YANG BEKERJA', 'R', 'S', 'T', 'N', 'TITIK KOORDINAT', 'LINK FOTO']
         kolom_tersedia = [k for k in kolom_tabel if k in df_filtered.columns]
         
-        # Menyulap tabel menjadi tombol sakti!
         tabel_event = st.dataframe(
             df_filtered[kolom_tersedia], 
             use_container_width=True,
-            on_select="rerun", # Perintah sakti untuk menangkap klik
+            on_select="rerun",
             selection_mode="single-row"
         )
 
-        # Jika ada baris yang diklik, langsung munculkan Peta!
         if len(tabel_event.selection.rows) > 0:
             st.markdown("---")
-            
-            # Mengambil data dari baris yang diklik
             selected_index = tabel_event.selection.rows[0]
             row = df_filtered.iloc[selected_index]
             
             penyulang_info = str(row.get('PENYULANG', ''))
             tikor = str(row.get('TITIK KOORDINAT', ''))
-            foto = str(row.get('FOTO', ''))
+            foto = str(row.get('LINK FOTO', ''))
             
             st.markdown(f"### 📍 Peta & Bukti Foto: {penyulang_info}")
             
@@ -218,7 +214,7 @@ elif sub_menu in ["📝 Input Baru", "✏️ Edit / Hapus Data"]:
                     temporer = st.number_input("Temporer (Kali)", min_value=0)
                     permanen = st.number_input("Permanen (Kali)", min_value=0)
                     titik_koordinat = st.text_input("Titik Koordinat (Contoh: 1.432, 99.231)")
-                    foto = st.text_input("Link Foto Gangguan (Google Drive/Lainnya)")
+                    foto_input = st.text_input("Link Foto Gangguan (Google Drive/Lainnya)")
 
                 st.markdown("**Arus Fasa (A)**")
                 col_r, col_s, col_t_fasa, col_n = st.columns(4)
@@ -242,7 +238,7 @@ elif sub_menu in ["📝 Input Baru", "✏️ Edit / Hapus Data"]:
                                 "durasi_jam": durasi_jam, "durasi_menit": durasi_menit,
                                 "temporer": temporer, "permanen": permanen, "cuaca": cuaca,
                                 "arus_tertinggi": arus_tertinggi, "ens": ens,
-                                "r": r, "s": s, "t": t, "n": n, "titik_koordinat": titik_koordinat, "foto": foto
+                                "r": r, "s": s, "t": t, "n": n, "titik_koordinat": titik_koordinat, "foto": foto_input
                             }
                             try:
                                 req = requests.post(WEBHOOK_URL, json=payload)
@@ -270,7 +266,7 @@ elif sub_menu in ["📝 Input Baru", "✏️ Edit / Hapus Data"]:
                         edit_tgl_padam = st.text_input("Tanggal Padam (YYYY-MM-DD)", value=str(data_asli.get('TANGGAL PADAM', '')))
                         edit_relay = st.text_input("Relay Yang Bekerja", value=str(data_asli.get('RELAY YANG BEKERJA', '')))
                         edit_durasi = st.number_input("Durasi Jam", value=float(data_asli.get('DURASI JAM', 0.0) if pd.notna(data_asli.get('DURASI JAM')) else 0.0))
-                        edit_foto = st.text_input("Link Foto", value=str(data_asli.get('FOTO', '')))
+                        edit_foto = st.text_input("Link Foto", value=str(data_asli.get('LINK FOTO', '')))
                     
                     st.markdown("---")
                     col_btn1, col_btn2 = st.columns(2)
