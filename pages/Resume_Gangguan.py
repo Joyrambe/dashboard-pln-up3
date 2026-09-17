@@ -9,7 +9,7 @@ import streamlit.components.v1 as components
 st.set_page_config(page_title="Resume Gangguan", page_icon="📊", layout="wide")
 
 # Kunci API ImgBB untuk Upload Otomatis dari Web
-IMGBB_API_KEY = "dbe6ae26ce8303a1fdc3b826d3ce0d7c"
+IMGBB_API_KEY = "fe5ace48d844fe38b901ec45699274f0"
 
 # =========================================================
 # 1. LOAD DATA GOOGLE SHEETS
@@ -48,7 +48,7 @@ sub_menu = st.radio(
 st.title("GANGGUAN PENYULANG")
 st.markdown("---")
 
-WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxvbw68N92VTdSZP4xUT6HnWNvcvYdrYR4vNhUSndaGwyDk-VbVRQSFp0-6bajsWst3/exec"
+WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbyVozjDyOEbGm7zgItdGVsNTc5rJ5TA9yVS9oTEayzs71Z4eGHXz9JoCsKlZ1LLFOce/exec"
 
 # =========================================================
 # KONTEN 1 & 2 (GRAFIK & PIE CHART)
